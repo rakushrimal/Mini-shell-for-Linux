@@ -1,0 +1,788 @@
+#include <sys/wait.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <netinet/in.h>
+#include <net/if.h>
+#include <arpa/inet.h>
+#include <string.h>
+#include<time.h>
+
+/*
+  Function Declarations for builtin shell commands:
+ */
+int lsh_cd(char **args);
+int lsh_help(char **args);
+int lsh_findsize(char **args);
+int lsh_conv(char **args);
+int lsh_countword(char **args);
+int lsh_remove(char **args);
+int lsh_occur(char **args);
+int lsh_copy(char **args);
+int lsh_date(char **args);
+int lsh_timecp(char **args);
+int lsh_numword(char **args);
+int lsh_deleteline(char **args);
+int lsh_delete(char **args);
+
+int lsh_ip(char **args);
+int lsh_exit(char **args);
+
+
+/*
+  List of builtin commands, followed by their corresponding functions.
+ */
+char *builtin_str[] = {
+ 
+  "help",
+  
+  "findsize",
+  "conv",
+  "countword",
+  "remove",
+  "deleteline",  
+  "occur",
+  "copy",
+  "date",
+  "timecp",
+  "numword", 
+  "delete",
+  "ip",
+  
+  "exit"
+   
+};
+
+int (*builtin_func[]) (char **) = {
+  
+  &lsh_help,  
+  &lsh_findsize,
+  &lsh_conv,
+  &lsh_countword, 
+  &lsh_remove,
+  &lsh_deleteline,
+  &lsh_occur,
+  &lsh_copy,
+  &lsh_date,
+  &lsh_timecp,
+  &lsh_numword,
+  &lsh_delete,
+  &lsh_ip,
+  &lsh_exit
+  
+};
+
+int lsh_num_builtins() {
+  return sizeof(builtin_str) / sizeof(char *);
+}
+
+/*
+  Builtin function implementations.
+*/
+
+
+int lsh_cd(char **args)
+{
+  if (args[1] == NULL) {
+    fprintf(stderr, "lsh: expected argument to \"cd\"\n");
+  } else {
+    if (chdir(args[1]) != 0) {
+      perror("lsh");
+    }
+  }
+  return 1;
+}
+
+
+//Date and time
+int lsh_date(char **args)
+{
+  
+    time_t t;   // not a primitive datatype
+    time(&t);
+
+    printf("\nCurrent date and time: %s", ctime(&t));
+
+    return 1;
+}
+//time taken by process
+int lsh_timecp(char **args)
+{
+	// to store execution time of code
+	double time_spent = 0.0;
+
+	clock_t begin = clock();
+
+	// do some stuff here
+	sleep(3);
+
+	clock_t end = clock();
+
+	// calculate elapsed time by finding difference (end - begin) and
+	// dividing the difference by CLOCKS_PER_SEC to convert to seconds
+	time_spent += (double)(end - begin) / CLOCKS_PER_SEC;
+
+	printf("Time elpased is %f seconds", time_spent);
+
+	return 1;
+}
+
+// Delete the file
+int lsh_delete(char **args)
+{ 
+char abc[100];
+
+printf("Enter the filename to delete:");
+scanf("%s",abc);
+   
+if (remove(abc) == 0) 
+      printf("Deleted successfully"); 
+   else
+      printf("FILE NOT FOUND!! \nUnable to delete the file"); 
+  
+   return 1; 
+}  
+
+
+
+
+//Count the no of words in the given string
+int lsh_countword(char **args)
+{ 
+    FILE *fptr; 
+    char ch; 
+    int wrd=1,charctr=1;
+    char fname[20];
+
+	printf(" Input the filename : ");
+	scanf("%s",fname);    
+
+    fptr=fopen(fname,"r"); 
+    if(fptr==NULL) 
+     { 
+         printf(" File does not exist or can not be opened."); 
+      } 
+    else 
+        { 
+          ch=fgetc(fptr); 
+          printf(" The content of the file %s are : ",fname); 
+          while(ch!=EOF) 
+            { 
+                printf("%c",ch); 
+                if(ch==' '||ch=='\n')
+                    { 
+                        wrd++; 
+                    }
+                    else
+                    {
+                        charctr++; 
+                    }
+                ch=fgetc(fptr); 
+            }
+        printf("\n The number of words in the  file %s are : %d\n",fname,wrd-2); 
+        printf(" The number of characters in the  file %s are : %d\n\n",fname,charctr-1);         
+        } 
+    
+return 1; 
+}
+//number to word conversion
+int lsh_numword(char **args)
+
+{
+    int n, num = 0;
+
+    /* Input number from user */
+    printf("Enter any number to print in words: ");
+    scanf("%d", &n);
+
+    /* Store reverse of n in num */
+    while(n != 0)
+    {
+        num = (num * 10) + (n % 10);
+        n /= 10;
+    }
+
+    /* 
+     * Extract last digit of number and print corresponding digit in words
+     * till num becomes 0
+     */
+    while(num != 0)
+    {
+        switch(num % 10)
+        {
+            case 0: 
+                printf("Zero ");
+                break;
+            case 1: 
+                printf("One ");
+                break;
+            case 2: 
+                printf("Two ");
+                break;
+            case 3: 
+                printf("Three ");
+                break;
+            case 4: 
+                printf("Four ");
+                break;
+            case 5: 
+                printf("Five ");
+                break;
+            case 6: 
+                printf("Six ");
+                break;
+            case 7: 
+                printf("Seven ");
+                break;
+            case 8: 
+                printf("Eight ");
+                break;
+            case 9: 
+                printf("Nine ");
+                break;
+        }
+        
+        num = num / 10;
+    }
+
+    return 1;
+}
+//ip adress of system
+int lsh_ip(char **args)
+{
+
+    int n;
+
+    struct ifreq ifr;
+
+    char array[] = "eth0";
+
+ 
+
+    n = socket(AF_INET, SOCK_DGRAM, 0);
+
+    //Type of address to retrieve - IPv4 IP address
+
+    ifr.ifr_addr.sa_family = AF_INET;
+
+    //Copy the interface name in the ifreq structure
+
+    strncpy(ifr.ifr_name , array , IFNAMSIZ - 1);
+
+    ioctl(n, SIOCGIFADDR, &ifr);
+
+    close(n);
+
+    //display result
+
+    printf("IP Address is %s - %s\n" , array , inet_ntoa(( (struct sockaddr_in *)&ifr.ifr_addr )->sin_addr) );
+
+    return 1;
+
+}
+ 
+ 
+// Convert the given decimal no to binary no
+int lsh_conv(char **args)
+{	    
+      int n, c, k;
+      printf("Enter an integer in decimal number system\n");
+      scanf("%d", &n);     
+      printf("%d in binary number system is:\n", n);     
+      for (c = 31; c >= 0; c--)
+      {
+        k = n >> c;     
+        if (k & 1)
+          printf("1");
+        else
+          printf("0");
+      }     
+      printf("\n");     
+      return 1;
+
+}
+int lsh_deleteline(char **args)
+
+
+{
+
+    FILE *fileptr1, *fileptr2;
+
+    char filename[40];
+
+    char ch;
+
+    int delete_line, temp = 1;
+
+ 
+
+    printf("Enter file name: ");
+
+    scanf("%s", filename);
+
+    //open file in read mode
+
+    fileptr1 = fopen(filename, "r");
+
+    ch = getc(fileptr1);
+
+    while (ch != EOF)
+
+    {
+
+        printf("%c", ch);
+
+        ch = getc(fileptr1);
+
+    }
+
+    //rewind
+
+    rewind(fileptr1);
+
+    printf(" \n Enter line number of the line to be deleted:");
+
+    scanf("%d", &delete_line);
+
+    //open new file in write mode
+
+    fileptr2 = fopen("replica.c", "w");
+
+    ch = getc(fileptr1);
+
+    while (ch != EOF)
+
+    {
+
+        ch = getc(fileptr1);
+
+        if (ch == '\n')
+
+            temp++;
+
+            //except the line to be deleted
+
+            if (temp != delete_line)
+
+            {
+
+                //copy all lines in file replica.c
+
+                putc(ch, fileptr2);
+
+            }
+
+    }
+
+    fclose(fileptr1);
+
+    fclose(fileptr2);
+
+    remove(filename);
+
+    //rename the file replica.c to original name
+
+    rename("replica.c", filename);
+
+    printf("\n The contents of file after being modified are as follows:\n");
+
+    fileptr1 = fopen(filename, "r");
+
+    ch = getc(fileptr1);
+
+    while (ch != EOF)
+
+    {
+
+        printf("%c", ch);
+
+        ch = getc(fileptr1);
+
+    }
+
+    fclose(fileptr1);
+
+    return 1;
+
+}
+
+// Remove all char from string except alphabet
+int lsh_remove(char **args)
+{
+    char line[150];
+    int i, j;
+    printf("Enter a string: ");
+    scanf("%s",line);
+    for(i = 0; line[i] != '\0'; ++i)
+    {
+        while (!( (line[i] >= 'a' && line[i] <= 'z') || (line[i] >= 'A' && line[i] <= 'Z') || line[i] == '\0') )
+        {
+            for(j = i; line[j] != '\0'; ++j)
+            {
+                line[j] = line[j+1];
+            }
+            line[j] = '\0';
+        }
+    }
+    printf("Output String: ");
+    puts(line);
+    return 1;
+}
+
+
+//Copy content of a file to another new file
+
+int lsh_copy(char **args)
+{
+char ch, source_file[100], target_file[100];
+       FILE *source, *target;
+     
+       printf("Enter name of file to copy\n");
+       scanf("%s",source_file);
+     
+       source = fopen(source_file, "r");
+     
+       if( source == NULL )
+       {
+          exit(EXIT_FAILURE);
+       }
+     
+       printf("Enter name of target file\n");
+       scanf("%s",target_file);
+     
+       target = fopen(target_file, "w");
+     
+       if( target == NULL )
+       {
+          fclose(source);
+          exit(EXIT_FAILURE);
+       }
+     
+       while( ( ch = fgetc(source) ) != EOF )
+          fputc(ch, target);
+     
+       printf("File copied successfully.\n");
+     
+       fclose(source);
+       fclose(target);
+     
+       return 1;
+}
+
+
+//Count the occurance of a string in the file
+
+#define BUFFER_SIZE 1000
+int countOccurrences(FILE *fptr, const char *word);
+int lsh_occur(char **args)
+{
+    FILE *fptr;
+    char path[100];
+
+    char word[50];
+
+    int wCount;
+
+    /* Input file path */
+    printf("Enter filename: ");
+    scanf("%s", path);
+
+    /* Input word to search in file */
+    printf("Enter word to search in file: ");
+    scanf("%s", word);
+
+    /* Try to open file */
+    fptr = fopen(path, "r");
+
+    /* Exit if file not opened successfully */
+    if (fptr == NULL)
+    {
+        printf("Unable to open file.\n");
+        printf("Please check you have read/write previleges.\n");
+
+        exit(EXIT_FAILURE);
+    }
+
+    // Call function to count all occurrence of word
+    wCount = countOccurrences(fptr, word);
+
+    printf("'%s' is found %d times in file.", word, wCount);
+
+
+    // Close file
+    fclose(fptr);
+
+    return 1;
+}
+
+
+/**
+ * Returns total occurrences of a word in given file.
+ */
+int countOccurrences(FILE *fptr, const char *word)
+{
+    char str[BUFFER_SIZE];
+    char *pos;
+
+    int index, count;
+    
+    count = 0;
+
+    // Read line from file till end of file.
+    while ((fgets(str, BUFFER_SIZE, fptr)) != NULL)
+    {
+        index = 0;
+
+        // Find next occurrence of word in str
+        while ((pos = strstr(str + index, word)) != NULL)
+        {
+            // Index of word in str is
+            // Memory address of pos - memory
+            // address of str.
+            index = (pos - str) + 1;
+
+            count++;
+        }
+    }
+
+    return count;
+
+}
+
+//Find the size of a file
+
+long int findSize(char file_name[])
+{
+    // opening the file in read mode
+    FILE* fp = fopen(file_name, "r");
+ 
+    // checking if the file exist or not
+    if (fp == NULL) {
+        printf("File Not Found!\n");
+        return -1;
+    }
+ 
+    fseek(fp, 0L, SEEK_END);
+ 
+    // calculating the size of the file
+    long int res = ftell(fp);
+ 
+    // closing the file
+    fclose(fp);
+ 
+    return res;
+}
+ 
+
+int lsh_findsize(char **args)
+{
+char ab[100];
+printf("Enter the file name:");
+scanf("%s",ab);
+    
+    long int res = findSize(ab);
+    if (res != -1)
+        printf("Size of the file is %ld bytes \n", res);
+    return 1;
+}
+
+
+int lsh_help(char **args)
+{
+  int i;
+
+  printf("The following are built in commands:\n");
+
+  for (i = 0; i < lsh_num_builtins(); i++) {
+    printf("  %s\n", builtin_str[i]);
+  }
+
+  printf("Type the command name and press enter.\n");
+  return 1;
+}
+
+
+// BUILT IN FUNCTION TO EXIT
+int lsh_exit(char **args)
+{
+  return 0;
+}
+
+
+int lsh_launch(char **args)
+{
+  pid_t pid;
+  int status;
+
+  pid = fork();
+  if (pid == 0) {
+    // Child process
+    if (execvp(args[0], args) == -1) {
+      perror("lsh");
+    }
+    exit(EXIT_FAILURE);
+  } else if (pid < 0) {
+    // Error forking
+    perror("lsh");
+  } else {
+    // Parent process
+    do {
+      waitpid(pid, &status, WUNTRACED);
+    } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+  }
+
+  return 1;
+}
+
+/**
+   @brief Execute shell built-in or launch program.
+   @param args Null terminated list of arguments.
+   @return 1 if the shell should continue running, 0 if it should terminate
+ */
+int lsh_execute(char **args)
+{
+  int i;
+
+  if (args[0] == NULL) {
+    // An empty command was entered.
+    return 1;
+  }
+
+  for (i = 0; i < lsh_num_builtins(); i++) {
+    if (strcmp(args[0], builtin_str[i]) == 0) {
+      return (*builtin_func[i])(args);
+    }
+  }
+
+  return lsh_launch(args);
+}
+
+#define LSH_RL_BUFSIZE 1024
+/**
+   @brief Read a line of input from stdin.
+   @return The line from stdin.
+ */
+char *lsh_read_line(void)
+{
+  int bufsize = LSH_RL_BUFSIZE;
+  int position = 0;
+  char *buffer = malloc(sizeof(char) * bufsize);
+  int c;
+
+  if (!buffer) {
+    fprintf(stderr, "lsh: allocation error\n");
+    exit(EXIT_FAILURE);
+  }
+
+  while (1) {
+    // Read a character
+    c = getchar();
+
+    if (c == EOF) {
+      exit(EXIT_SUCCESS);
+    } else if (c == '\n') {
+      buffer[position] = '\0';
+      return buffer;
+    } else {
+      buffer[position] = c;
+    }
+    position++;
+
+    // If we have exceeded the buffer, reallocate.
+    if (position >= bufsize) {
+      bufsize += LSH_RL_BUFSIZE;
+      buffer = realloc(buffer, bufsize);
+      if (!buffer) {
+        fprintf(stderr, "lsh: allocation error\n");
+        exit(EXIT_FAILURE);
+      }
+    }
+  }
+}
+
+#define LSH_TOK_BUFSIZE 64
+#define LSH_TOK_DELIM " \t\r\n\a"
+/**
+   @brief Split a line into tokens (very naively).
+   @param line The line.
+   @return Null-terminated array of tokens.
+ */
+char **lsh_split_line(char *line)
+{
+  int bufsize = LSH_TOK_BUFSIZE, position = 0;
+  char **tokens = malloc(bufsize * sizeof(char*));
+  char *token, **tokens_backup;
+
+  if (!tokens) {
+    fprintf(stderr, "lsh: allocation error\n");
+    exit(EXIT_FAILURE);
+  }
+
+  token = strtok(line, LSH_TOK_DELIM);
+  while (token != NULL) {
+    tokens[position] = token;
+    position++;
+
+    if (position >= bufsize) {
+      bufsize += LSH_TOK_BUFSIZE;
+      tokens_backup = tokens;
+      tokens = realloc(tokens, bufsize * sizeof(char*));
+      if (!tokens) {
+free(tokens_backup);
+        fprintf(stderr, "lsh: allocation error\n");
+        exit(EXIT_FAILURE);
+      }
+    }
+
+    token = strtok(NULL, LSH_TOK_DELIM);
+  }
+  tokens[position] = NULL;
+  return tokens;
+}
+
+/**
+   @brief Loop getting input and executing it.
+ */
+void lsh_loop(void)
+{
+  char *line;
+  char **args;
+  int status;
+
+  do {
+    printf("> ");
+    line = lsh_read_line();
+    args = lsh_split_line(line);
+    status = lsh_execute(args);
+
+    free(line);
+    free(args);
+  } while (status);
+}
+
+/**
+   @brief Main entry point.
+   @param argc Argument count.
+   @param argv Argument vector.
+   @return status code
+ */
+int main(int argc, char **argv)
+{
+  // Load config files, if any.
+
+  // Run command loop.
+  lsh_loop();
+
+  // Perform any shutdown/cleanup.
+
+  return EXIT_SUCCESS;
+}
+
+
+	
+	
+	
+
